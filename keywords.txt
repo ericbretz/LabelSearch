@@ -1,0 +1,61 @@
+# If you get hits for IUCP or chemical names, consider these automatic candidates for manual review
+# the funky formatting of the words makes it really difficult to find reliable matches against these pictures.
+
+# empty lines are ignored, and lines starting with # or / are ignored. so use those to keep some organization if you want
+# the comment format I'm using is "/" for categories and "#" for information, like some of the IUPAC keywords being truncated to make the search slightly easier.
+# but feel free to format in whatever way makes sense to you.
+
+# the keywords arent case sensitive, so you dont need to do all caps like i did.
+
+# I also left the "Test Phrases" that i used for the test images found in /images, like image_bad.png. Remember to delete this category from this file, and those test images
+# from /images before running your analysis.
+
+//// Test Phrases ////
+#SACCHARIN
+#ASPARTAME
+#MALTODEXTRIN
+#ACE-K
+#SUCRALOSE
+#NEOTAME
+#ADVANTAME
+#PRESERVATIVE
+#POTASSIUM SORBATE
+#SODIUM BENZOATE
+#SULFUR DIOXIDE
+
+//// ACE-K ////
+ACESULFAME POTASSIUM
+POTASSIUM ACESULFAME
+ACESULFAME K
+ACESULFAM-K
+
+// IUPAC LABELS
+POTASSIUM 6-METHYL-1
+# POTASSIUM 6-METHYL-1,2,3-OXATHIAZIN-4(3H)-ONE 2,2-DIOXIDE
+# ignoring ,2,3-OXATHIAZIN-4(3H)-ONE 2,2-DIOXIDE
+
+1,2,3-OXATHIAZIN-4(3H)-ONE
+# 1,2,3-OXATHIAZIN-4(3H)-ONE, 6-METHYL-, 2,2-DIOXIDE, POTASSIUM SALT 
+# ignoring , 6-METHYL-, 2,2-DIOXIDE, POTASSIUM SALT 
+
+//// SACCHARIN ////
+SACCHARIN
+BENZOSULFIMIDE, O-
+SACCHARIN INSOLUBLE
+BENZOIC SULFIMIDE
+SACCHARIMIDE
+ANHYDRO-O-SULFAMINEBENZOIC ACID
+SULFOBENZIMIDE, O-
+BENZOIC ACID SULFIMIDE
+
+// IUPAC LABELS
+1,2-DIHYDRO-2-KETOBENZISOSULFONAZOLE
+2,3-DIHYDRO-3-OXOBENZISOSULFONAZOLE
+
+1,2-BENZISOTHIAZOLIN-3-ONE
+#1,2-BENZISOTHIAZOLIN-3-ONE 1,1-DIOXIDE
+#ignoring 1,1-DIOXIDE
+
+1,2-BENZISOTHIAZOL-3(2H)-ONE
+#1,2-BENZISOTHIAZOL-3(2H)-ONE 1,1-DIOXIDE
+#ignoring 1,1-DIOXIDE
