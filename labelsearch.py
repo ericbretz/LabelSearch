@@ -86,8 +86,9 @@ def _norm_token(s: str) -> str:
     return _RE_NORMALIZE.sub("", s.lower())
 
 def _is_iupac_like(name: str) -> bool:
-    s = name.upper()
-    has_digit = any(c.isdigit() for c in s)
+    """I'm not sure how often we'll see IUPAC, but this is a basic flag for them."""
+    s          = name.upper()
+    has_digit  = any(c.isdigit() for c in s)
     has_struct = any(ch in s for ch in "-(),")
     return has_digit and has_struct
 
