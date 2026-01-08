@@ -245,7 +245,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         "--output-dir",
         type    = Path,
         default = defaults.output_dir,
-        help    = "Directory for all output results (Excel file, matches, manual_review, etc.).",
+        help    = "Directory for all output results.",
     )
     parser.add_argument(
         "--keywords-file",
@@ -1034,7 +1034,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     )
 
     config.output_dir.mkdir(parents=True, exist_ok=True)
-    output_excel = config.output_dir / "ocr_results.xlsx"
+    output_excel = config.output_dir / "results.xlsx"
     
     logging.info(f"Saving results to {output_excel}")
     processed_df = processed_df.replace("", pd.NA)
