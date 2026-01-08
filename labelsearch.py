@@ -6,23 +6,21 @@
 from __future__ import annotations
 
 import argparse
-import contextlib
-import io
 import logging
 import os
 import re
+import shutil
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Sequence, Union
+from typing import Optional, Sequence
 
 import cv2
 import numpy as np
 import pandas as pd
 from rapidfuzz import fuzz
 from tqdm import tqdm
-from typing import TYPE_CHECKING
 
 try:
     from help import print_logo, print_help, COLORS
@@ -44,7 +42,7 @@ BASE_PATH = Path(__file__).resolve().parent
 
 @dataclass
 class Config:
-    output_excel               : Path     = BASE_PATH / "ocr_results.xlsx"
+    output_dir                 : Path     = BASE_PATH
     images_dir                 : Path     = BASE_PATH / "images"
     upscaled_dir               : Path     = BASE_PATH / "upscaled"
     keywords_file              : Path     = BASE_PATH / "keywords.txt"
@@ -88,6 +86,142 @@ def _ensure_path(value: str | Path) -> Path:
     return candidate.expanduser().resolve()
 
 
+def next_available_path(target_dir: Path, original_name: str) -> Path:
+    """Find the next available path for a file if duplicates"""
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    base      = Path(original_name)
+    candidate = target_dir / base.name
+    if not candidate.exists():
+        return candidate
+
+    stem    = base.stem
+    suffix  = base.suffix
+    counter = 1
+    while True:
+        candidate = target_dir / f"{stem}_{counter}{suffix}"
+        if not candidate.exists():
+            return candidate
+        counter += 1
+
+
+def resolve_image_path(raw_path: str) -> Path | None:
+    """Resolve image paths"""
+    candidates: list[Path] = []
+
+    path_obj = Path(raw_path).expanduser()
+    if path_obj.is_absolute():
+        candidates.append(path_obj)
+    else:
+        candidates.append(path_obj)
+
+    cleaned_relative = raw_path.lstrip("/\\")
+    candidates.append(BASE_PATH / cleaned_relative)
+
+    name_only = Path(raw_path).name
+    if name_only:
+        candidates.append(BASE_PATH / name_only)
+        candidates.append(BASE_PATH / "images" / name_only)
+
+    for cand in candidates:
+        if cand.is_file():
+            return cand
+    
+    return None
+
+
+def collect_images_from_dataframe(
+    df           : pd.DataFrame,
+    output_dir   : Path,
+    subdir_name  : str,
+    filter_column: str,
+    filter_func  : callable
+) -> tuple[int, int]:
+    """Function to collect images from results"""
+    if "image_path" not in df.columns:
+        logging.error(f"Column 'image_path' not found in the DataFrame.")
+        return 0, 0
+    
+    if filter_column not in df.columns:
+        logging.error(f"Column '{filter_column}' not found in the DataFrame.")
+        return 0, 0
+
+    target_dir  = output_dir / subdir_name
+    mask        = df[filter_column].apply(filter_func)
+    filtered_df = df[mask].copy()
+    
+    if filtered_df.empty:
+        logging.info(f"No images to collect for '{subdir_name}'.")
+        return 0, 0
+
+    copied  = 0
+    skipped = 0
+
+    for row in filtered_df.itertuples(index=False):
+        image_path_value = getattr(row, 'image_path', None)
+        if not image_path_value:
+            skipped += 1
+            continue
+
+        raw_path = str(image_path_value).strip()
+        src = resolve_image_path(raw_path)
+
+        if src is None:
+            logging.warning(f"Source file not found, skipping: {raw_path}")
+            skipped += 1
+            continue
+
+        try:
+            dest = next_available_path(target_dir, src.name)
+            shutil.copy2(src, dest)
+            copied += 1
+        except Exception as exc:
+            logging.warning(f"Failed to copy {src} to {target_dir}: {exc}")
+            skipped += 1
+
+    logging.info(f"Copied {copied} file(s) to '{target_dir}'. Skipped {skipped} row(s).")
+    return copied, skipped
+
+
+def collect_images(excel_path: Path, output_dir: Path, collect_matches: bool, collect_manual: bool) -> None:
+    if not collect_matches and not collect_manual:
+        return
+    
+    if not excel_path.exists():
+        logging.error(f"Excel file not found: {excel_path}")
+        return
+
+    try:
+        df = pd.read_excel(excel_path, keep_default_na=False)
+    except Exception as exc:
+        logging.error(f"Failed to read Excel file: {exc}")
+        return
+
+    if collect_matches:
+        def has_matches(val) -> bool:
+            raw_val = str(val).strip()
+            return bool(raw_val) and raw_val.upper() != "NA"
+        
+        logging.info("Collecting matched images...")
+        collect_images_from_dataframe(
+            df, output_dir, "matches", "matched_keywords", has_matches
+        )
+
+    if collect_manual:
+        def needs_review(val) -> bool:
+            if isinstance(val, bool):
+                return val
+            elif isinstance(val, str):
+                return val.strip().upper() in ("TRUE", "1", "YES", "T")
+            else:
+                return bool(val)
+        
+        logging.info("Collecting images for manual review...")
+        collect_images_from_dataframe(
+            df, output_dir, "manual_review", "manual_review", needs_review
+        )
+
+
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     """parse any overrides for the script."""
     defaults = Config()
@@ -108,10 +242,10 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         help    = "Where to store generated upscaled or debug images.",
     )
     parser.add_argument(
-        "--output-excel",
+        "--output-dir",
         type    = Path,
-        default = defaults.output_excel,
-        help    = "Destination for excel results.",
+        default = defaults.output_dir,
+        help    = "Directory for all output results (Excel file, matches, manual_review, etc.).",
     )
     parser.add_argument(
         "--keywords-file",
@@ -203,11 +337,27 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         help   = "Pass raw BGR images to PaddleOCR.",
     )
 
+    parser.add_argument(
+        "--matches",
+        dest   = "collect_matches",
+        action = "store_true",
+        help   = "Copy images with matched keywords to a 'matches' directory.",
+    )
+
+    parser.add_argument(
+        "--manual",
+        dest   = "collect_manual",
+        action = "store_true",
+        help   = "Copy images flagged for manual review to a 'manual_review' directory.",
+    )
+
     parser.set_defaults(
         upscale_enabled      = defaults.upscale_enabled,
         save_debug_images    = defaults.save_debug_images,
         save_upscaled_images = defaults.save_upscaled_images,
         convert_to_rgb       = defaults.convert_to_rgb,
+        collect_matches      = False,
+        collect_manual       = False,
     )
 
     return parser.parse_args(argv)
@@ -215,7 +365,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
 
 def get_config_from_args(args: argparse.Namespace) -> Config:
     return Config(
-        output_excel                = _ensure_path(args.output_excel),
+        output_dir                  = _ensure_path(args.output_dir),
         images_dir                  = _ensure_path(args.images_dir),
         upscaled_dir                = _ensure_path(args.upscaled_dir),
         keywords_file               = _ensure_path(args.keywords_file),
@@ -883,10 +1033,18 @@ def main(argv: Sequence[str] | None = None) -> None:
         config           = config,
     )
 
-    logging.info(f"Saving results to {config.output_excel}")
-    config.output_excel.parent.mkdir(parents=True, exist_ok=True)
+    config.output_dir.mkdir(parents=True, exist_ok=True)
+    output_excel = config.output_dir / "ocr_results.xlsx"
+    
+    logging.info(f"Saving results to {output_excel}")
     processed_df = processed_df.replace("", pd.NA)
-    processed_df.to_excel(config.output_excel, index=False, engine="openpyxl", na_rep="NA")
+    processed_df.to_excel(output_excel, index=False, engine="openpyxl", na_rep="NA")
+
+    if args.collect_matches or args.collect_manual:
+        try:
+            collect_images(output_excel, config.output_dir, args.collect_matches, args.collect_manual)
+        except Exception as exc:
+            logging.error(f"Failed to collect images: {exc}")
 
     summary_lines = [
         f"Images processed:   {stats['rows_processed']}",
