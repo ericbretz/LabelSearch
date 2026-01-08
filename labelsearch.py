@@ -733,7 +733,7 @@ def contains_keywords(
     threshold          : int = 85,
 ) -> tuple[dict[str, bool | str], list[str]]:
     """
-    Return a dictionary mapping each keyword to True or False,
+    Return a dictionary mapping each keyword to True or False.
     depending on whether it appears in the cleaned keyword list,
     plus a list of corrected strings from the fuzzy search.
     """
@@ -746,8 +746,8 @@ def contains_keywords(
             hits[keyword] = False
         return hits, corrections
 
-    lower_tokens = [t.lower() for t in tokens]
-    norm_tokens = {i: _norm_token(t) for i, t in enumerate(tokens)}
+    lower_tokens      = [t.lower() for t in tokens]
+    norm_tokens       = {i: _norm_token(t) for i, t in enumerate(tokens)}
     matchable_indices = [
         i for i, norm_tok in norm_tokens.items() if len(norm_tok) >= 3
     ]
@@ -759,13 +759,13 @@ def contains_keywords(
             keyword_data[keyword] = {"valid": False}
             continue
 
-        kw_lower = kw.lower()
+        kw_lower  = kw.lower()
         kw_tokens = _tokenize(kw)
         if not kw_tokens:
             keyword_data[keyword] = {"valid": False}
             continue
 
-        kw_norm_tokens = {i: _norm_token(t) for i, t in enumerate(kw_tokens)}
+        kw_norm_tokens      = {i: _norm_token(t) for i, t in enumerate(kw_tokens)}
         kw_tokens_matchable = [
             (i, kw_norm_tokens[i], kw_tokens[i]) for i in kw_norm_tokens
             if len(kw_norm_tokens[i]) >= 3
@@ -775,10 +775,10 @@ def contains_keywords(
             continue
 
         keyword_data[keyword] = {
-            "valid": True,
-            "kw": kw,
-            "kw_lower": kw_lower,
-            "kw_clean": _RE_NORMALIZE.sub("", kw_lower),
+            "valid"              : True,
+            "kw"                 : kw,
+            "kw_lower"           : kw_lower,
+            "kw_clean"           : _RE_NORMALIZE.sub("", kw_lower),
             "kw_tokens_matchable": kw_tokens_matchable,
         }
 
@@ -787,9 +787,9 @@ def contains_keywords(
             hits[keyword] = False
             continue
 
-        kw = kw_data["kw"]
-        kw_lower = kw_data["kw_lower"]
-        kw_clean = kw_data["kw_clean"]
+        kw                  = kw_data["kw"]
+        kw_lower            = kw_data["kw_lower"]
+        kw_clean            = kw_data["kw_clean"]
         kw_tokens_matchable = kw_data["kw_tokens_matchable"]
 
         best_positions: list[int]   = []
@@ -797,7 +797,7 @@ def contains_keywords(
         all_matched                 = True
 
         for tok_idx, tok_norm, tok_orig in kw_tokens_matchable:
-            tok_lower = tok_orig.lower()
+            tok_lower  = tok_orig.lower()
             best_score = -1.0
             best_idx   = -1
             for idx in matchable_indices: 
@@ -1058,7 +1058,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     for keyword, slug in keyword_slug_map.items():
         column_name = f"contains_{slug}"
         if column_name in processed_df:
-            col_data = processed_df[column_name].fillna(False)
+            col_data    = processed_df[column_name].fillna(False)
             match_count = int(col_data.astype(bool).sum())
             keyword_counts.append((keyword, match_count))
     if keyword_counts:
@@ -1068,7 +1068,7 @@ def main(argv: Sequence[str] | None = None) -> None:
             summary_lines.append(f"  {keyword:<{longest_keyword}}   {match_count}")
     if keywords and "matched_keywords" in processed_df:
         matched_col = processed_df["matched_keywords"].fillna("")
-        multi_hit = int(matched_col.astype(str).str.len().gt(0).sum())
+        multi_hit   = int(matched_col.astype(str).str.len().gt(0).sum())
         summary_lines.append(f"Images with hits:   {multi_hit}")
 
     for line in summary_lines:
