@@ -60,10 +60,24 @@ class Config:
     })
     allowlist: str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 .,()-/%"
 
+# Split text into tokens on punctuation and whitespace
+# "Acetone, 99.5% (pure)" -> ["Acetone", "99", "5", "pure"]
 _RE_TOKENIZE           = re.compile(r"[,.\n(); ]+")
+
+# Remove all non alphanumeric characters
+# "Sodium-Chloride-99%" -> "sodiumchloride99"
 _RE_NORMALIZE          = re.compile(r"[^a-z0-9]+")
+
+# Replace non alphanumeric charactrs with underscores
+# "Sodium Chloride 99%" -> "sodium_chloride_99"
 _RE_SLUGIFY            = re.compile(r"[^a-z0-9]+")
+
+# Split keywords on semicolon only
+# "Acetone; Ethanol; Methanol" -> ["Acetone", "Ethanol", "Methanol"]
 _RE_KEYWORD_SPLIT_SEMI = re.compile(r"[;]")
+
+# Split keywords on backslash, forward slash, pipe, semicolon, plus
+# "Acetone/Ethanol+Methanol" -> ["Acetone", "Ethanol", "Methanol"]
 _RE_KEYWORD_SPLIT      = re.compile(r"[\\/|;+]")
 
 START_TIME             = datetime.now()
